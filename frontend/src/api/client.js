@@ -44,7 +44,7 @@ async function request(path, options) {
   if (options.headers) Object.assign(headers, options.headers);
 
   var res = await fetch(BASE + path, {
-    method: options.method,
+    method: method,
     credentials: 'include',
     headers: headers,
     body: options.body ? JSON.stringify(options.body) : undefined,
