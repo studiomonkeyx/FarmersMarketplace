@@ -5,11 +5,12 @@
   "scripts": {
     "start": "node src/index.js",
     "dev": "nodemon src/index.js",
-    "test": "jest --runInBand --forceExit"
+    "test": "jest --forceExit"
   },
   "jest": {
     "testEnvironment": "node",
-    "testMatch": ["**/tests/**/*.test.js"]
+    "testMatch": ["**/tests/**/*.test.js"],
+    "setupFilesAfterEnv": ["<rootDir>/tests/jest.setup.js"]
   },
   "dependencies": {
     "@stellar/stellar-sdk": "^12.1.0",
