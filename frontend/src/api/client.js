@@ -1,17 +1,5 @@
 const BASE = '/api';
-let loadingCallback = null;
-let logoutCallback = null;
 
-export function setLoadingCallback(callback) {
-  loadingCallback = callback;
-}
-
-export function setLogoutCallback(callback) {
-  logoutCallback = callback;
-}
-
-function getToken() {
-  return localStorage.getItem('token');
 // Access token lives in memory only — never in localStorage
 let accessToken = null;
 
@@ -23,139 +11,72 @@ export function clearAccessToken() {
   accessToken = null;
 }
 
+// Reads the csrf_token cookie (not HttpOnly, so JS can read it)
+function getCsrfToken() {
+  const match = document.cookie.split(';').find(c => c.trim().startsWith('csrf_token='));
+  return match ? match.trim().split('=')[1] : null;
+}
+
+// Lazily fetches a CSRF token from the server if the cookie is missing
+let csrfReady = null;
+function ensureCsrfToken() {
+  if (getCsrfToken()) return Promise.resolve();
+  if (!csrfReady) {
+    csrfReady = fetch(`${BASE}/csrf-token`, { credentials: 'include' })
+      .then(r => r.json())
+      .catch(() => null)
+      .finally(() => { csrfReady = null; });
+  }
+  return csrfReady;
+}
+
 // Attempt to get a fresh access token using the HttpOnly refresh cookie
 async function refreshAccessToken() {
-  const res = await fetch(`${BASE}/auth/refresh`, {
-    method: 'POST',
-    credentials: 'include', // send the HttpOnly cookie
-  });
+  const res = await fetch(`${BASE}/auth/refresh`, { method: 'POST', credentials: 'include' });
   if (!res.ok) return null;
   const data = await res.json();
   accessToken = data.token;
   return accessToken;
 }
 
-function getErrorMessage(error, data) {
-  if (data?.error) return data.error;
-  if (typeof data === 'string') return data;
-  if (error?.message) return error.message;
-  return 'Something went wrong';
-}
+const MUTATING = ['POST', 'PUT', 'PATCH', 'DELETE'];
+const CSRF_EXEMPT = ['/auth/login', '/auth/register'];
 
-async function request(path, options = {}, retries = 0) {
-  loadingCallback?.(true);
-  try {
-    const res = await fetch(`${BASE}${path}`, {
-  let res;
-  try {
-    res = await fetch(`${BASE}${path}`, {
-      ...options,
-      headers: {
-        'Content-Type': 'application/json',
-        ...(getToken() ? { Authorization: `Bearer ${getToken()}` } : {}),
-        ...options.headers,
-      },
-      body: options.body ? JSON.stringify(options.body) : undefined,
-    });
-
-    const data = await res.json().catch(() => null);
-
-    if (res.status === 401) {
-      logoutCallback?.();
-      throw new Error('Session expired');
-    }
-
-    if (!res.ok) {
-      const message = getErrorMessage(null, data);
-      throw new Error(message);
-    }
-
-    return data;
-  } catch (error) {
-    if (retries < 1 && error instanceof TypeError) {
-      await new Promise(r => setTimeout(r, 500));
-      return request(path, options, retries + 1);
-    }
-    throw error;
-  } finally {
-    loadingCallback?.(false);
-  }
-  } catch {
-    throw new Error('Failed to fetch');
-  }
 async function request(path, options = {}, retry = true) {
+  const method = (options.method || 'GET').toUpperCase();
+  const needsCsrf = MUTATING.includes(method) && !CSRF_EXEMPT.includes(path);
+
+  if (needsCsrf) await ensureCsrfToken();
+
+  const csrfToken = needsCsrf ? getCsrfToken() : null;
+
+  // If a FormData body is passed, let the browser set Content-Type (multipart boundary)
+  const isFormData = options.body instanceof FormData;
+
+  const headers = {};
+  if (!isFormData) headers['Content-Type'] = 'application/json';
+  if (accessToken) headers['Authorization'] = `Bearer ${accessToken}`;
+  if (csrfToken) headers['X-CSRF-Token'] = csrfToken;
+  Object.assign(headers, options.headers || {});
+
   const res = await fetch(`${BASE}${path}`, {
-    ...options,
-    credentials: 'include', // always include cookies
-    headers: {
-      'Content-Type': 'application/json',
-      ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
-      ...options.headers,
-    },
-    body: options.body ? JSON.stringify(options.body) : undefined,
+    method,
+    credentials: 'include',
+    headers,
+    body: isFormData ? options.body : (options.body ? JSON.stringify(options.body) : undefined),
   });
 
-  // Silent refresh: if 401 and we haven't retried yet, try to refresh
+  // Silent refresh on 401
   if (res.status === 401 && retry) {
     const newToken = await refreshAccessToken();
-    if (newToken) {
-      return request(path, options, false); // retry once with new token
-    }
-    // Refresh failed — clear token and let the caller handle it
+    if (newToken) return request(path, options, false);
     clearAccessToken();
     const data = await res.json().catch(() => ({}));
     throw new Error(data.error || 'Session expired');
   }
 
   const data = await res.json();
-// Reads the csrf_token cookie (not HttpOnly, so JS can read it)
-function getCsrfToken() {
-  const match = document.cookie.split(';').find(function(c) {
-    return c.trim().startsWith('csrf_token=');
-  });
-  return match ? match.trim().split('=')[1] : null;
-}
-
-// Lazily fetches a CSRF token from the server if the cookie is missing
-var csrfReady = null;
-function ensureCsrfToken() {
-  if (getCsrfToken()) return Promise.resolve();
-  if (!csrfReady) {
-    csrfReady = fetch(BASE + '/csrf-token', { credentials: 'include' })
-      .then(function(r) { return r.json(); })
-      .catch(function() { return null; })
-      .finally(function() { csrfReady = null; });
-  }
-  return csrfReady;
-}
-
-var MUTATING = ['POST', 'PUT', 'PATCH', 'DELETE'];
-var CSRF_EXEMPT = ['/auth/login', '/auth/register'];
-
-async function request(path, options) {
-  options = options || {};
-  var method = (options.method || 'GET').toUpperCase();
-  var needsCsrf = MUTATING.indexOf(method) !== -1 && CSRF_EXEMPT.indexOf(path) === -1;
-
-  if (needsCsrf) await ensureCsrfToken();
-
-  var csrfToken = needsCsrf ? getCsrfToken() : null;
-
-  var headers = { 'Content-Type': 'application/json' };
-  var token = getToken();
-  if (token) headers['Authorization'] = 'Bearer ' + token;
-  if (csrfToken) headers['X-CSRF-Token'] = csrfToken;
-  if (options.headers) Object.assign(headers, options.headers);
-
-  var res = await fetch(BASE + path, {
-    method: method,
-    credentials: 'include',
-    headers: headers,
-    body: options.body ? JSON.stringify(options.body) : undefined,
-  });
-
-  var data = await res.json();
-  if (!res.ok) throw new Error(data.error || 'Request failed');
+  if (!res.ok) throw new Error(data.message || data.error || 'Request failed');
   return data;
 }
 
@@ -164,16 +85,32 @@ export const api = {
   login: (body) => request('/auth/login', { method: 'POST', body }),
   logout: () => request('/auth/logout', { method: 'POST' }),
   refresh: () => refreshAccessToken(),
-export var api = {
-  register: function(body) { return request('/auth/register', { method: 'POST', body: body }); },
-  login: function(body) { return request('/auth/login', { method: 'POST', body: body }); },
 
-  getProducts: function(filters) {
-    filters = filters || {};
-    var entries = Object.entries(filters).filter(function(e) { return e[1] !== '' && e[1] != null; });
-    var qs = new URLSearchParams(entries).toString();
-    return request('/products' + (qs ? '?' + qs : ''));
+  getProducts: (filters = {}) => {
+    const entries = Object.entries(filters).filter(([, v]) => v !== '' && v != null);
+    const qs = new URLSearchParams(entries).toString();
+    return request(`/products${qs ? `?${qs}` : ''}`);
   },
+  getCategories: () => request('/products/categories'),
+  getProduct: (id) => request(`/products/${id}`),
+  createProduct: (body) => request('/products', { method: 'POST', body }),
+  getMyProducts: () => request('/products/mine/list'),
+  deleteProduct: (id) => request(`/products/${id}`, { method: 'DELETE' }),
+
+  // Upload a product image — returns { imageUrl }
+  uploadProductImage: (file) => {
+    const form = new FormData();
+    form.append('image', file);
+    return request('/products/upload-image', { method: 'POST', body: form });
+  },
+
+  placeOrder: (body) => request('/orders', { method: 'POST', body }),
+  getOrders: () => request('/orders'),
+  getSales: () => request('/orders/sales'),
+
+  getWallet: () => request('/wallet'),
+  getTransactions: () => request('/wallet/transactions'),
+  fundWallet: () => request('/wallet/fund', { method: 'POST' }),
   getCategories: function() { return request('/products/categories'); },
   getProduct: function(id) { return request('/products/' + id); },
   createProduct: function(body) { return request('/products', { method: 'POST', body: body }); },
