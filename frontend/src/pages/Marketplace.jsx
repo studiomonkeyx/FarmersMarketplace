@@ -43,7 +43,8 @@ export default function Marketplace() {
       if (f.maxPrice && f.maxPrice < MAX_PRICE) params.maxPrice = f.maxPrice;
       if (f.seller)    params.seller = f.seller;
       if (f.available) params.available = f.available;
-      setProducts(await api.getProducts(params));
+      const res = await api.getProducts(params);
+      setProducts(res.data ?? res);
     } catch {}
     setLoading(false);
   }, []);
@@ -131,7 +132,10 @@ export default function Marketplace() {
             <div key={p.id} style={s.card} onClick={() => navigate(`/product/${p.id}`)}
               onMouseEnter={e => e.currentTarget.style.transform = 'translateY(-2px)'}
               onMouseLeave={e => e.currentTarget.style.transform = ''}>
-              <div style={{ fontSize: 32, marginBottom: 8 }}>🥬</div>
+              {p.image_url
+                ? <img src={p.image_url} alt={p.name} style={{ width: '100%', height: 140, objectFit: 'cover', borderRadius: 8, marginBottom: 10 }} />
+                : <div style={{ fontSize: 32, marginBottom: 8 }}>🥬</div>
+              }
               {p.category && p.category !== 'other' && <div style={s.badge}>{p.category}</div>}
               <div style={s.name}>{p.name}</div>
               <div style={s.farmer}>by {p.farmer_name}</div>

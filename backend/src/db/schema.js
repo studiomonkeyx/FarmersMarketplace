@@ -73,7 +73,8 @@ try {
   process.exit(1);
 }
 
-// Migrate existing DB: add category column if missing
+// Migrate existing DB: add columns if missing
 try { db.exec(`ALTER TABLE products ADD COLUMN category TEXT DEFAULT 'other'`); } catch {}
+try { db.exec(`ALTER TABLE products ADD COLUMN image_url TEXT`); } catch {}
 
 module.exports = db;

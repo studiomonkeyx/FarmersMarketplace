@@ -9,6 +9,7 @@ if (missing.length) {
   process.exit(1);
 }
 
+const path = require('path');
 const express = require('express');
 const cors = require('cors');
 const cookieParser = require('cookie-parser');
@@ -23,16 +24,15 @@ app.use(enforceHttps);
 app.use(hsts);
 
 app.use(cors({
-  origin: process.env.CLIENT_ORIGIN || 'http://localhost:3000',
-  credentials: true, // required for cookies to be sent cross-origin
-}));
-app.use(express.json());
-app.use(cookieParser());
   origin: process.env.FRONTEND_ORIGIN || 'http://localhost:5173',
-  credentials: true, // required so the browser sends/receives cookies cross-origin
+  credentials: true,
 }));
 
 app.use(express.json());
+app.use(cookieParser());
+
+// Serve uploaded product images as static files
+app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
 
 // Expose CSRF token endpoint (must be before csrfProtect so it's never blocked)
 app.get('/api/csrf-token', csrfTokenHandler);

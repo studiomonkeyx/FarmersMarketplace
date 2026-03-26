@@ -29,7 +29,11 @@ export default function ProductDetail() {
   const [result, setResult] = useState(null);
   const [error, setError] = useState('');
 
-  useEffect(() => { api.getProduct(id).then(setProduct).catch(() => navigate('/marketplace')); }, [id]);
+  useEffect(() => {
+    api.getProduct(id)
+      .then(res => setProduct(res.data ?? res))
+      .catch(() => navigate('/marketplace'));
+  }, [id]);
 
   if (!product) return <div style={{ padding: 40, textAlign: 'center' }}>Loading...</div>;
 
@@ -69,7 +73,10 @@ export default function ProductDetail() {
   return (
     <div style={s.page}>
       <div style={s.card}>
-        <div style={{ fontSize: 48, marginBottom: 12 }}>🥬</div>
+        {product.image_url
+          ? <img src={product.image_url} alt={product.name} style={{ width: '100%', maxHeight: 280, objectFit: 'cover', borderRadius: 10, marginBottom: 16 }} />
+          : <div style={{ fontSize: 48, marginBottom: 12 }}>🥬</div>
+        }
         <div style={s.name}>{product.name}</div>
         <div style={s.farmer}>Sold by {product.farmer_name}</div>
         <div style={s.desc}>{product.description || 'Fresh from the farm.'}</div>
