@@ -44,7 +44,7 @@ router.get('/', (req, res) => {
   ).get(...countParams).count;
 
   const products = db.prepare(
-    `SELECT p.*, u.name as farmer_name,
+    `SELECT p.*, u.id as farmer_id, u.name as farmer_name, u.bio as farmer_bio, u.location as farmer_location, u.avatar_url as farmer_avatar,
             ROUND(AVG(r.rating), 1) as avg_rating,
             COUNT(r.id) as review_count
      FROM products p
@@ -70,7 +70,7 @@ router.get('/search', (req, res) => {
   }
   try {
     const products = db.prepare(`
-      SELECT p.*, u.name as farmer_name, fts.rank
+      SELECT p.*, u.id as farmer_id, u.name as farmer_name, u.bio as farmer_bio, u.location as farmer_location, u.avatar_url as farmer_avatar, fts.rank
       FROM products_fts fts
       JOIN products p ON p.id = fts.rowid
       JOIN users u ON p.farmer_id = u.id
@@ -83,7 +83,7 @@ router.get('/search', (req, res) => {
     // Fallback to LIKE search if FTS fails (e.g. special chars)
     const like = `%${q}%`;
     const products = db.prepare(
-      `SELECT p.*, u.name as farmer_name FROM products p JOIN users u ON p.farmer_id = u.id
+      `SELECT p.*, u.id as farmer_id, u.name as farmer_name, u.bio as farmer_bio, u.location as farmer_location, u.avatar_url as farmer_avatar FROM products p JOIN users u ON p.farmer_id = u.id
        WHERE p.name LIKE ? OR p.description LIKE ? ORDER BY p.created_at DESC LIMIT 100`
     ).all(like, like);
     res.json({ success: true, data: products });
@@ -122,7 +122,7 @@ router.post('/upload-image', auth, (req, res) => {
 // GET /api/products/:id
 router.get('/:id', (req, res) => {
   const product = db.prepare(`
-    SELECT p.*, u.name as farmer_name, u.stellar_public_key as farmer_wallet,
+    SELECT p.*, u.id as farmer_id, u.name as farmer_name, u.bio as farmer_bio, u.location as farmer_location, u.avatar_url as farmer_avatar, u.stellar_public_key as farmer_wallet,
            ROUND(AVG(r.rating), 1) as avg_rating,
            COUNT(r.id) as review_count
     FROM products p

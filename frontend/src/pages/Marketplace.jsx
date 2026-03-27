@@ -27,23 +27,11 @@ const s = {
   qty:        { fontSize: 12, color: '#888', marginTop: 4 },
   badge:      { display: 'inline-block', fontSize: 11, background: '#d8f3dc', color: '#2d6a4f', borderRadius: 4, padding: '2px 7px', marginBottom: 8 },
   empty:      { textAlign: 'center', padding: 60, color: '#888' },
-  page: { maxWidth: 1100, margin: '0 auto', padding: 24 },
-  title: { fontSize: 24, fontWeight: 700, color: '#2d6a4f', marginBottom: 8 },
-  sub: { color: '#666', marginBottom: 20, fontSize: 15 },
-  filters: { display: 'flex', flexWrap: 'wrap', gap: 10, marginBottom: 24, alignItems: 'center' },
-  input: { padding: '9px 14px', borderRadius: 8, border: '1px solid #ddd', fontSize: 14 },
-  select: { padding: '9px 14px', borderRadius: 8, border: '1px solid #ddd', fontSize: 14, background: '#fff' },
-  priceRow: { display: 'flex', gap: 6, alignItems: 'center' },
-  resetBtn: { padding: '9px 14px', borderRadius: 8, border: '1px solid #ddd', background: '#f5f5f5', cursor: 'pointer', fontSize: 13 },
-  grid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))', gap: 20 },
-  card: { background: '#fff', borderRadius: 12, padding: 20, boxShadow: '0 1px 8px #0001', cursor: 'pointer', transition: 'transform 0.1s', border: '2px solid transparent' },
-  name: { fontWeight: 700, fontSize: 16, marginBottom: 4 },
-  farmer: { fontSize: 12, color: '#888', marginBottom: 8 },
-  desc: { fontSize: 13, color: '#555', marginBottom: 12, minHeight: 36 },
-  price: { fontWeight: 700, color: '#2d6a4f', fontSize: 18 },
-  qty: { fontSize: 12, color: '#888', marginTop: 4 },
-  badge: { display: 'inline-block', fontSize: 11, background: '#d8f3dc', color: '#2d6a4f', borderRadius: 4, padding: '2px 7px', marginBottom: 8 },
-  empty: { textAlign: 'center', padding: 60, color: '#888' },
+  sellerSection: { display: 'flex', gap: 10, alignItems: 'center', marginTop: 12, paddingTop: 12, borderTop: '1px solid #eee' },
+  sellerAvatar: { width: 36, height: 36, borderRadius: '50%', objectFit: 'cover', background: '#d8f3dc', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18, flexShrink: 0 },
+  sellerInfo: { flex: 1, minWidth: 0 },
+  sellerName: { fontWeight: 600, fontSize: 13, color: '#2d6a4f', cursor: 'pointer', textDecoration: 'underline', marginBottom: 2 },
+  sellerLocation: { fontSize: 11, color: '#999' },
 };
 
 const EMPTY_FILTERS = { search: '', category: '', minPrice: '', maxPrice: '', seller: '', available: 'true' };
@@ -189,12 +177,6 @@ export default function Marketplace() {
               }
               {p.category && p.category !== 'other' && <div style={s.badge}>{p.category}</div>}
               <div style={s.name}>{p.name}</div>
-              <div
-                style={{ ...s.farmer, cursor: 'pointer', textDecoration: 'underline' }}
-                onClick={e => { e.stopPropagation(); navigate(`/farmer/${p.farmer_id}`); }}
-              >
-                by {p.farmer_name}
-              </div>
               <div style={s.desc}>{p.description || 'Fresh from the farm'}</div>
               <div style={s.price}>{p.price} XLM <span style={{ fontSize: 13, fontWeight: 400 }}>/ {p.unit}</span></div>
               {usd(p.price) && <div style={{ fontSize: 12, color: '#888', marginTop: 2 }}>{usd(p.price)} <span style={{ fontSize: 10, color: '#aaa' }}>(approx.)</span></div>}
@@ -204,6 +186,24 @@ export default function Marketplace() {
                   <StarRating value={p.avg_rating} count={p.review_count} size={13} />
                 </div>
               )}
+              
+              {/* Seller Information Section */}
+              <div style={s.sellerSection}>
+                {p.farmer_avatar ? (
+                  <img src={p.farmer_avatar} alt={p.farmer_name} style={s.sellerAvatar} />
+                ) : (
+                  <div style={{ ...s.sellerAvatar, fontSize: 18 }}>👨‍🌾</div>
+                )}
+                <div style={s.sellerInfo}>
+                  <div
+                    style={s.sellerName}
+                    onClick={e => { e.stopPropagation(); navigate(`/farmer/${p.farmer_id}`); }}
+                  >
+                    {p.farmer_name}
+                  </div>
+                  {p.farmer_location && <div style={s.sellerLocation}>📍 {p.farmer_location}</div>}
+                </div>
+              </div>
             </div>
           ))}
         </div>
