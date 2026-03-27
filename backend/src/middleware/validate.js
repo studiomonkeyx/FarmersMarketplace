@@ -55,6 +55,7 @@ const schemas = {
   order: validate(z.object({
     product_id: z.coerce.number().int().positive('product_id must be a positive integer'),
     quantity: z.coerce.number().int().positive('quantity must be a positive integer'),
+    address_id: z.coerce.number().int().positive().optional(),
   })),
 
   sendXLM: validate(z.object({
@@ -110,6 +111,8 @@ const schemas = {
         throw new Error('avatar_url must be a valid upload path');
       return true;
     }),
+    handle,
+  ],
   review: [
     body('order_id').isInt({ gt: 0 }).withMessage('order_id must be a positive integer'),
     body('rating').isInt({ min: 1, max: 5 }).withMessage('rating must be an integer between 1 and 5'),

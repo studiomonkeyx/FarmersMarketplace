@@ -28,6 +28,7 @@ const s = {
   textarea:   { width: '100%', padding: '10px 12px', border: '1px solid #ddd', borderRadius: 8, fontSize: 14, resize: 'vertical', minHeight: 80, boxSizing: 'border-box' },
   label:      { fontSize: 13, color: '#555', marginBottom: 6, display: 'block' },
   empty:      { color: '#aaa', fontSize: 14, textAlign: 'center', padding: '24px 0' },
+  select:     { width: '100%', padding: '9px 12px', border: '1px solid #ddd', borderRadius: 8, fontSize: 14, marginBottom: 12 },
 };
 
 export default function ProductDetail() {
@@ -35,26 +36,22 @@ export default function ProductDetail() {
   const { user } = useAuth();
   const navigate = useNavigate();
   const [product, setProduct] = useState(null);
+  const [reviews, setReviews] = useState([]);
   const [qty, setQty] = useState(1);
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState(null);
   const [error, setError] = useState('');
   const { usd } = useXlmRate();
-
-  const [product, setProduct]   = useState(null);
-  const [reviews, setReviews]   = useState([]);
-  const [qty, setQty]           = useState(1);
-  const [loading, setLoading]   = useState(false);
-  const [result, setResult]     = useState(null);
-  const [error, setError]       = useState('');
+  const [addresses, setAddresses] = useState([]);
+  const [selectedAddressId, setSelectedAddressId] = useState(null);
 
   // Review form state
-  const [paidOrders, setPaidOrders]     = useState([]);
+  const [paidOrders, setPaidOrders] = useState([]);
   const [reviewRating, setReviewRating] = useState(5);
   const [reviewComment, setReviewComment] = useState('');
   const [reviewOrderId, setReviewOrderId] = useState('');
   const [reviewLoading, setReviewLoading] = useState(false);
-  const [reviewError, setReviewError]   = useState('');
+  const [reviewError, setReviewError] = useState('');
   const [reviewSuccess, setReviewSuccess] = useState('');
 
   const loadReviews = useCallback(async () => {
@@ -69,7 +66,22 @@ export default function ProductDetail() {
       .then(res => setProduct(res.data ?? res))
       .catch(() => navigate('/marketplace'));
     loadReviews();
-  }, [id, loadReviews]);
+  }, [id, loadReviews, navigate]);
+
+  // Load buyer's addresses
+  useEffect(() => {
+    if (user?.role !== 'buyer') return;
+    api.getAddresses()
+      .then(res => {
+        const addrs = res.data ?? [];
+        setAddresses(addrs);
+        // Pre-select default address
+        const defaultAddr = addrs.find(a => a.is_default);
+        if (defaultAddr) setSelectedAddressId(defaultAddr.id);
+        else if (addrs.length > 0) setSelectedAddressId(addrs[0].id);
+      })
+      .catch(() => {});
+  }, [user]);
 
   // Load buyer's paid orders for this product so they can pick which to review
   useEffect(() => {
@@ -92,10 +104,15 @@ export default function ProductDetail() {
   async function handleBuy() {
     if (!user) return navigate('/login');
     if (user.role === 'farmer') return setError('Farmers cannot place orders');
+    if (addresses.length > 0 && !selectedAddressId) return setError('Please select a delivery address');
     setLoading(true);
     setError('');
     try {
-      const res = await api.placeOrder({ product_id: product.id, quantity: qty });
+      const res = await api.placeOrder({ 
+        product_id: product.id, 
+        quantity: qty,
+        address_id: selectedAddressId || undefined,
+      });
       setResult(res);
     } catch (e) {
       setError(getStellarErrorMessage(e));
@@ -165,7 +182,6 @@ export default function ProductDetail() {
             {product.farmer_name}
           </span>
         </div>
-        <div style={s.farmer}>Sold by {product.farmer_name}</div>
 
         {/* Average rating */}
         <div style={{ marginBottom: 16 }}>
@@ -187,6 +203,31 @@ export default function ProductDetail() {
           />
           <span style={{ fontSize: 13, color: '#888' }}>{product.unit}</span>
         </div>
+
+        {/* Address selector for buyers */}
+        {user?.role === 'buyer' && addresses.length > 0 && (
+          <div style={{ marginBottom: 20 }}>
+            <label style={s.label}>Delivery Address</label>
+            <select
+              style={s.select}
+              value={selectedAddressId || ''}
+              onChange={e => setSelectedAddressId(e.target.value ? parseInt(e.target.value) : null)}
+            >
+              {addresses.map(addr => (
+                <option key={addr.id} value={addr.id}>
+                  {addr.label} — {addr.street}, {addr.city}
+                  {addr.is_default ? ' (Default)' : ''}
+                </option>
+              ))}
+            </select>
+            <button 
+              style={{ background: 'none', border: 'none', color: '#2d6a4f', cursor: 'pointer', fontSize: 13, padding: 0 }}
+              onClick={() => navigate('/addresses')}
+            >
+              Manage addresses
+            </button>
+          </div>
+        )}
 
         <div style={s.total}>Total: <strong>{total} XLM</strong></div>
         {error && <div style={s.err}>{error}</div>}

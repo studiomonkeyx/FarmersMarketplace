@@ -153,7 +153,7 @@ router.patch('/:id/restock', auth, (req, res) => {
 router.post('/', auth, validate.product, (req, res) => {
   if (req.user.role !== 'farmer') return err(res, 403, 'Only farmers can list products', 'forbidden');
 
-  const { name, description, unit, category, image_url } = req.body;
+  const { name, description, unit, category, image_url, tags } = req.body;
   const price    = parseFloat(req.body.price);
   const quantity = parseInt(req.body.quantity, 10);
 
