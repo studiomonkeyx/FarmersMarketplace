@@ -2,7 +2,10 @@ import React, { useEffect, useRef, useState } from 'react';
 import { api } from '../api/client';
 import { useAuth } from '../context/AuthContext';
 import { validateProduct } from '../utils/validation';
+<<<<<<< feature/human-friendly-errors
 import { getErrorMessage } from '../utils/errorMessages';
+=======
+>>>>>>> main
 
 const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
 const MAX_SIZE_MB = 5;
@@ -41,6 +44,8 @@ const s = {
 };
 
 const EMPTY_FORM = { name: '', description: '', price: '', quantity: '', unit: 'kg', category: 'other' };
+
+import { useAuth } from '../context/AuthContext';
 
 export default function Dashboard() {
   const { user } = useAuth();
@@ -228,11 +233,63 @@ export default function Dashboard() {
   }
 
   return (
-    <div style={s.page}>
-      <div style={s.title}>🌾 Farmer Dashboard</div>
+<div style={s.page}>
+      <div style={s.title}>{user?.role === 'admin' ? '🔧 Admin Dashboard' : '🌾 Farmer Dashboard'}</div>
+      {user.role === 'admin' && (
+        <div style={{ ...s.card, marginBottom: 24 }}> 
+          <h3 style={{ marginBottom: 16, color: '#333' }}>📋 Contract State Viewer</h3>
+          <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'end' }}>
+            <div style={{ flex: 1, minWidth: 300 }}>
+              <label style={s.label}>Contract ID</label>
+              <input
+                style={s.input}
+                value={contractId}
+                onChange={(e) => setContractId(e.target.value)}
+                placeholder="e.g. CB64..."
+              />
+            </div>
+            <div style={{ flex: 1, minWidth: 200 }}>
+              <label style={s.label}>Key Prefix (optional)</label>
+              <input
+                style={s.input}
+                value={prefix}
+                onChange={(e) => setPrefix(e.target.value)}
+                placeholder="e.g. ADMIN_ or hex"
+              />
+            </div>
+            <button style={s.btn} onClick={loadContractState} disabled={loadingState}>
+              {loadingState ? 'Loading...' : 'Load State'}
+            </button>
+          </div>
+          {stateErr && <div style={{ ...s.msg, background: '#fee', color: '#c0392b', marginTop: 12 }}>{stateErr}</div>}
+          {stateEntries.length > 0 && (
+            <div style={{ marginTop: 16, maxHeight: 400, overflow: 'auto' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
+                <thead>
+                  <tr style={{ background: '#f8f9fa' }}>
+                    <th style={{ padding: '8px 12px', textAlign: 'left', borderBottom: '1px solid #eee' }}>Key</th>
+                    <th style={{ padding: '8px 12px', textAlign: 'left', borderBottom: '1px solid #eee' }}>Value</th>
+                    <th style={{ padding: '8px 12px', textAlign: 'left', borderBottom: '1px solid #eee' }}>Durability</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {stateEntries.map((entry, i) => (
+                    <tr key={i} style={{ borderBottom: '1px solid #f0f0f0' }}>
+                      <td style={{ padding: '8px 12px', fontFamily: 'monospace' }}>{entry.key}</td>
+                      <td style={{ padding: '8px 12px', fontFamily: 'monospace', maxWidth: 300, wordBreak: 'break-all' }}>{entry.val}</td>
+                      <td style={{ padding: '8px 12px' }}>{entry.durability}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      )}
       <div style={s.grid}>
-        <div style={s.card}>
-          <h3 style={{ marginBottom: 16, color: '#333' }}>Add New Product</h3>
+        {user.role === 'farmer' && (
+          <div style={s.card}>
+            <h3 style={{ marginBottom: 16, color: '#333' }}>Add New Product</h3>
           {msg && (
             <div style={{ ...s.msg, background: msg.type === 'ok' ? '#d8f3dc' : '#fee', color: msg.type === 'ok' ? '#2d6a4f' : '#c0392b' }}>
               {msg.text}
