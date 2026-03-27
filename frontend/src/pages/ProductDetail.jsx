@@ -191,7 +191,11 @@ export default function ProductDetail() {
         <div style={s.total}>Total: <strong>{total} XLM</strong></div>
         {error && <div style={s.err}>{error}</div>}
 
-        <button style={s.btn} onClick={handleBuy} disabled={loading}>
+        <button
+          style={{ ...s.btn, ...(loading && { opacity: 0.6, cursor: 'not-allowed' }) }}
+          onClick={handleBuy}
+          disabled={loading}
+        >
           {loading ? 'Processing payment...' : `Buy Now · ${total} XLM`}
         </button>
       </div>
