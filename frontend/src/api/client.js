@@ -100,18 +100,22 @@ export const api = {
   getMyProducts: () => request('/products/mine/list'),
   deleteProduct: (id) => request(`/products/${id}`, { method: 'DELETE' }),
 
-  // Upload a product image — returns { imageUrl }
   uploadProductImage: (file) => {
     const form = new FormData();
     form.append('image', file);
     return request('/products/upload-image', { method: 'POST', body: form });
   },
 
+  searchProducts: (q) => request(`/products/search?q=${encodeURIComponent(q)}`),
+
   placeOrder: (body) => request('/orders', { method: 'POST', body }),
   // params may include: status, page, limit
   getOrders: (params = {}) => request(`/orders${toQs(params)}`),
   // params may include: page, limit
   getSales: (params = {}) => request(`/orders/sales${toQs(params)}`),
+  getOrders: (status) => request(`/orders${status ? `?status=${status}` : ''}`),
+  getSales: () => request('/orders/sales'),
+  updateOrderStatus: (id, status) => request(`/orders/${id}/status`, { method: 'PATCH', body: { status } }),
 
   getWallet: () => request('/wallet'),
   getTransactions: () => request('/wallet/transactions'),
