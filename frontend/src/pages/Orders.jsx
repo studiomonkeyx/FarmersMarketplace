@@ -106,7 +106,7 @@ export default function Orders() {
     setClaimingId(orderId);
     setClaimError(prev => ({ ...prev, [orderId]: '' }));
     try {
-      await api.claimEscrow(orderId);
+      await api.claimPreorder(orderId);
       load();
     } catch (e) {
       setClaimError(prev => ({ ...prev, [orderId]: e.message }));
@@ -189,6 +189,11 @@ export default function Orders() {
                     {new Date(o.created_at).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' })}
                     {' '}<span style={{ color: '#bbb' }}>{new Date(o.created_at).toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' })}</span>
                   </div>
+                  {o.is_preorder ? (
+                    <div style={{ fontSize: 12, color: '#856404', marginTop: 4 }}>
+                      Pre-Order{ o.preorder_delivery_date ? ` · Expected delivery ${o.preorder_delivery_date}` : '' }
+                    </div>
+                  ) : null}
                   {o.stellar_tx_hash && (
                     <div style={s.hash}>
                       TX:{' '}

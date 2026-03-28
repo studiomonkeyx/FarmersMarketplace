@@ -237,6 +237,8 @@ export const api = {
     request(`/orders/${orderId}/escrow`, { method: "POST" }),
   claimEscrow: (orderId) =>
     request(`/orders/${orderId}/claim`, { method: "POST" }),
+  claimPreorder: (orderId) =>
+    request(`/orders/${orderId}/claim-preorder`, { method: "POST" }),
 
   setStockAlert: (productId) =>
     request(`/products/${productId}/alert`, { method: "POST" }),

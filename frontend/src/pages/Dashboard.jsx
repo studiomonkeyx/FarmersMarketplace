@@ -54,7 +54,16 @@ const s = {
   arrowBtn: { background: 'none', border: '1px solid #ddd', borderRadius: 4, padding: '2px 6px', cursor: 'pointer', fontSize: 12 },
 };
 
-const EMPTY_FORM = { name: '', description: '', price: '', quantity: '', unit: 'kg', category: 'other' };
+const EMPTY_FORM = {
+  name: '',
+  description: '',
+  price: '',
+  quantity: '',
+  unit: 'kg',
+  category: 'other',
+  is_preorder: false,
+  preorder_delivery_date: '',
+};
 
 import { useAuth } from '../context/AuthContext';
 
@@ -345,6 +354,9 @@ export default function Dashboard() {
     if (!form.quantity || isNaN(quantity) || quantity <= 0) {
       errors.quantity = 'Quantity must be a positive integer';
     }
+    if (form.is_preorder && !form.preorder_delivery_date) {
+      errors.preorder_delivery_date = 'Delivery date is required for pre-order products';
+    }
 
     if (Object.keys(errors).length > 0) {
       setFormErrors(errors);
@@ -377,6 +389,8 @@ export default function Dashboard() {
         ...form,
         price: parseFloat(form.price),
         quantity: parseInt(form.quantity),
+        is_preorder: form.is_preorder ? 1 : 0,
+        preorder_delivery_date: form.is_preorder ? form.preorder_delivery_date : null,
         image_url: finalImageUrl || undefined,
       });
       setMsg({ type: 'ok', text: 'Product listed successfully' });
@@ -567,6 +581,37 @@ export default function Dashboard() {
                 <option key={c} value={c}>{c.charAt(0).toUpperCase() + c.slice(1)}</option>
               ))}
             </select>
+
+            <label style={{ display: 'flex', alignItems: 'center', gap: 8, margin: '8px 0 10px', fontSize: 13, color: '#444' }}>
+              <input
+                type="checkbox"
+                checked={!!form.is_preorder}
+                onChange={e => setForm({
+                  ...form,
+                  is_preorder: e.target.checked,
+                  preorder_delivery_date: e.target.checked ? form.preorder_delivery_date : '',
+                })}
+              />
+              Mark as pre-order
+            </label>
+
+            {form.is_preorder && (
+              <>
+                <label style={s.label}>Expected Delivery Date</label>
+                <input
+                  style={formErrors.preorder_delivery_date ? s.inputErr : s.input}
+                  type="date"
+                  value={form.preorder_delivery_date}
+                  onChange={e => {
+                    setForm({ ...form, preorder_delivery_date: e.target.value });
+                    if (formErrors.preorder_delivery_date) setFormErrors(fe => ({ ...fe, preorder_delivery_date: '' }));
+                  }}
+                />
+                {formErrors.preorder_delivery_date && (
+                  <div style={s.fieldErr} role="alert">{formErrors.preorder_delivery_date}</div>
+                )}
+              </>
+            )}
 
             {/* Image upload */}
             <label style={s.label}>Product Image <span style={{ color: '#aaa', fontWeight: 400 }}>(optional · JPEG/PNG/WebP · max 5 MB)</span></label>

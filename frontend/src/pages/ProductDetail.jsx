@@ -578,6 +578,11 @@ export default function ProductDetail() {
         <div style={s.desc}>
           {product.description || "Fresh from the farm."}
         </div>
+        {product.is_preorder ? (
+          <div style={{ marginBottom: 12, fontSize: 13, fontWeight: 600, color: '#856404', background: '#fff3cd', display: 'inline-block', padding: '4px 10px', borderRadius: 20 }}>
+            Pre-Order{product.preorder_delivery_date ? ` · Expected delivery ${product.preorder_delivery_date}` : ''}
+          </div>
+        ) : null}
         <div style={s.price}>
           {product.price} XLM{" "}
           <span style={{ fontSize: 14, fontWeight: 400 }}>

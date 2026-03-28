@@ -189,6 +189,54 @@ async function claimBalance({ claimantSecret, balanceId }) {
   return result.hash;
 }
 
+async function createPreorderClaimableBalance({
+  senderSecret,
+  farmerPublicKey,
+  amount,
+  unlockAtUnix,
+}) {
+  const senderKeypair = StellarSdk.Keypair.fromSecret(senderSecret);
+  const senderAccount = await server.loadAccount(senderKeypair.publicKey());
+
+  const farmerClaimant = new StellarSdk.Claimant(
+    farmerPublicKey,
+    StellarSdk.Claimant.predicateNot(
+      StellarSdk.Claimant.predicateBeforeAbsoluteTime(String(unlockAtUnix)),
+    ),
+  );
+
+  const transaction = new StellarSdk.TransactionBuilder(senderAccount, {
+    fee: StellarSdk.BASE_FEE,
+    networkPassphrase,
+  })
+    .addOperation(
+      StellarSdk.Operation.createClaimableBalance({
+        asset: StellarSdk.Asset.native(),
+        amount: amount.toFixed(7),
+        claimants: [farmerClaimant],
+      }),
+    )
+    .setTimeout(30)
+    .build();
+
+  transaction.sign(senderKeypair);
+  const result = await server.submitTransaction(transaction);
+
+  const claimableBalances = await server
+    .claimableBalances()
+    .claimant(farmerPublicKey)
+    .order("desc")
+    .limit(5)
+    .call();
+
+  const balance = claimableBalances.records.find(
+    (b) => b.amount === amount.toFixed(7),
+  );
+  if (!balance) throw new Error("Claimable balance not found after creation");
+
+  return { txHash: result.hash, balanceId: balance.id };
+}
+
 async function getContractState(contractId, prefix = null) {
   const sorobanRpcUrl =
     process.env.SOROBAN_RPC_URL ||
@@ -264,6 +312,7 @@ module.exports = {
   sendPayment,
   getTransactions,
   createClaimableBalance,
+  createPreorderClaimableBalance,
   claimBalance,
   getContractState,
   resolveFederationAddress,

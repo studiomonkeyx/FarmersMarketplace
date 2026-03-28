@@ -32,6 +32,7 @@ const s = {
   price:      { fontWeight: 700, color: '#2d6a4f', fontSize: 18 },
   qty:        { fontSize: 12, color: '#888', marginTop: 4 },
   badge:      { display: 'inline-block', fontSize: 11, background: '#d8f3dc', color: '#2d6a4f', borderRadius: 4, padding: '2px 7px', marginBottom: 8 },
+  preorderBadge: { display: 'inline-block', fontSize: 11, background: '#fff3cd', color: '#856404', borderRadius: 4, padding: '2px 7px', marginBottom: 8, marginLeft: 6 },
   empty:      { textAlign: 'center', padding: 60, color: '#888' },
 };
 
@@ -201,6 +202,11 @@ export default function Marketplace() {
                 )}
               </div>
               {p.category && p.category !== 'other' && <div style={s.badge}>{p.category}</div>}
+              {p.is_preorder ? (
+                <div style={s.preorderBadge}>
+                  Pre-Order{p.preorder_delivery_date ? ` · Delivers ${p.preorder_delivery_date}` : ''}
+                </div>
+              ) : null}
               <div style={s.name}>{p.name}</div>
               <div
                 style={{ ...s.farmer, cursor: 'pointer', textDecoration: 'underline' }}

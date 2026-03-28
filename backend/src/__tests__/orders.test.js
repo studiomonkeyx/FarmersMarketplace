@@ -234,3 +234,63 @@ describe('GET /api/orders/sales', () => {
     expect(res.status).toBe(403);
   });
 });
+
+// ---------------------------------------------------------------------------
+// Pre-order specific flows
+// ---------------------------------------------------------------------------
+describe('Pre-order flows', () => {
+  it('creates a claimable balance when ordering a pre-order product', async () => {
+    const preorderProduct = {
+      ...product,
+      is_preorder: 1,
+      preorder_delivery_date: '2099-12-31',
+    };
+
+    stellar.getBalance.mockResolvedValueOnce(9999);
+    stellar.createPreorderClaimableBalance.mockResolvedValueOnce({
+      txHash: 'PREORDER_TX_HASH',
+      balanceId: 'PREORDER_BALANCE_001',
+    });
+
+    mockGet
+      .mockReturnValueOnce(preorderProduct) // product lookup
+      .mockReturnValueOnce(buyer) // buyer lookup
+      .mockReturnValueOnce(farmer) // farmer lookup for email
+      .mockReturnValueOnce({ quantity: 8, low_stock_threshold: 5, low_stock_alerted: 0 }); // low-stock check
+
+    mockRun
+      .mockReturnValueOnce({ changes: 1 }) // stock deduct
+      .mockReturnValueOnce({ lastInsertRowid: 91 }) // insert order
+      .mockReturnValueOnce({}); // update paid + escrow fields
+
+    const res = await request(app)
+      .post('/api/orders')
+      .set('Authorization', `Bearer ${buyerToken}`)
+      .send({ product_id: 10, quantity: 2 });
+
+    expect(res.status).toBe(200);
+    expect(res.body.status).toBe('paid');
+    expect(res.body.preorder).toBe(true);
+    expect(res.body.claimableBalanceId).toBe('PREORDER_BALANCE_001');
+  });
+
+  it('returns 400 when farmer claims pre-order before delivery date', async () => {
+    mockGet.mockReturnValueOnce({
+      id: 200,
+      buyer_id: 2,
+      product_id: 10,
+      is_preorder: 1,
+      preorder_delivery_date: '2099-12-31',
+      escrow_status: 'funded',
+      escrow_balance_id: 'PREORDER_BALANCE_001',
+    });
+
+    const res = await request(app)
+      .post('/api/orders/200/claim-preorder')
+      .set('Authorization', `Bearer ${farmerToken}`)
+      .send({});
+
+    expect(res.status).toBe(400);
+    expect(res.body.code).toBe('preorder_not_deliverable');
+  });
+});
