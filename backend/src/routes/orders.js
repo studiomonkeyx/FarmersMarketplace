@@ -16,6 +16,7 @@ const {
 } = require('../utils/mailer');
 const { err } = require('../middleware/error');
 const { getCachedResponse, cacheResponse } = require('../utils/idempotency');
+const { resolveCoupon, calcDiscount } = require('./coupons');
 
 function parsePreorderUnlockUnix(preorderDeliveryDate) {
   const ms = Date.parse(`${preorderDeliveryDate}T00:00:00Z`);
@@ -44,7 +45,7 @@ const { getCachedResponse, cacheResponse } = require('../utils/idempotency');
 router.post('/', auth, validate.order, async (req, res) => {
   if (req.user.role !== 'buyer') return err(res, 403, 'Only buyers can place orders', 'forbidden');
 
-  const { product_id, address_id } = req.body;
+  const { product_id, address_id, coupon_code } = req.body;
   const quantity = parseInt(req.body.quantity, 10);
   if (!product_id || Number.isNaN(quantity) || quantity < 1) {
     return err(res, 400, 'product_id and a positive quantity are required', 'validation_error');
@@ -78,30 +79,19 @@ router.post('/', auth, validate.order, async (req, res) => {
   const buyer = db
     .prepare('SELECT id, name, email, stellar_public_key, stellar_secret_key, referred_by, referral_bonus_sent FROM users WHERE id = ?')
     .get(req.user.id);
-  const idempotencyKey = req.headers['x-idempotency-key'];
-  const cached = await getCachedResponse(idempotencyKey);
-  if (cached) return res.status(cached.success ? 200 : 402).json(cached);
 
-  if (address_id) {
-    const { rows } = await db.query('SELECT * FROM addresses WHERE id = $1 AND user_id = $2', [address_id, req.user.id]);
-    if (!rows[0]) return err(res, 400, 'Invalid address_id', 'validation_error');
+  const subtotal = product.price * quantity;
+  let discount = 0;
+  let appliedCoupon = null;
+
+  if (coupon_code) {
+    const { coupon, error, code: errCode } = resolveCoupon(coupon_code, product.farmer_id);
+    if (error) return err(res, 400, error, errCode);
+    discount = calcDiscount(coupon, subtotal);
+    appliedCoupon = coupon;
   }
 
-  const { rows: pRows } = await db.query(
-    `SELECT p.*, u.stellar_public_key as farmer_wallet FROM products p JOIN users u ON p.farmer_id = u.id WHERE p.id = $1`,
-    [product_id]
-  );
-  const product = pRows[0];
-  if (!product) return err(res, 404, 'Product not found', 'not_found');
-
-  const { rows: bRows } = await db.query(
-    'SELECT id, name, email, stellar_public_key, stellar_secret_key, referred_by, referral_bonus_sent FROM users WHERE id = $1',
-    [req.user.id]
-  );
-  const buyer = bRows[0];
-  const totalPrice = product.price * quantity;
-
-  const totalPrice = product.price * quantity;
+  const totalPrice = parseFloat((subtotal - discount).toFixed(7));
   const balance = await getBalance(buyer.stellar_public_key);
   const required = totalPrice + 0.00001;
   if (balance < required) {
@@ -235,10 +225,15 @@ router.post('/', auth, validate.order, async (req, res) => {
       status: 'paid',
       txHash,
       totalPrice,
+      discount: discount > 0 ? discount : undefined,
       preorder: !!product.is_preorder,
       preorderDeliveryDate: product.preorder_delivery_date || null,
       claimableBalanceId: balanceId,
     };
+
+    if (appliedCoupon) {
+      db.prepare('UPDATE coupons SET used_count = used_count + 1 WHERE id = ?').run(appliedCoupon.id);
+    }
 
     if (idempotencyKey) cacheResponse(idempotencyKey, responseData);
     return res.json(responseData);

@@ -172,6 +172,12 @@ export const api = {
   getXlmRate: () => request('/rates/xlm-usd'),
   getAnalytics: () => request('/analytics/farmer'),
 
+  // Coupons
+  createCoupon: (body) => request('/coupons', { method: 'POST', body }),
+  getMyCoupons: () => request('/coupons'),
+  deleteCoupon: (id) => request(`/coupons/${id}`, { method: 'DELETE' }),
+  validateCoupon: (body) => request('/coupons/validate', { method: 'POST', body }),
+
   // Admin
   adminGetUsers: (page = 1) => request(`/admin/users?page=${page}`),
   adminDeactivateUser: (id) => request(`/admin/users/${id}`, { method: 'DELETE' }),

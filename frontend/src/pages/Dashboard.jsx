@@ -118,6 +118,11 @@ export default function Dashboard() {
   const [qrProductId, setQrProductId] = useState(null);
   const [qrProductName, setQrProductName] = useState('');
 
+  // Coupon state
+  const [coupons, setCoupons] = useState([]);
+  const [couponForm, setCouponForm] = useState({ code: '', discount_type: 'percent', discount_value: '', max_uses: '', expires_at: '' });
+  const [couponMsg, setCouponMsg] = useState(null);
+
   async function openGallery(productId) {
     setGalleryProductId(productId);
     setGalleryErr('');
@@ -235,16 +240,18 @@ export default function Dashboard() {
     setLoading(true);
     setError(null);
     try {
-      const [productsRes, salesRes, profileRes, bundlesRes] = await Promise.all([
+      const [productsRes, salesRes, profileRes, bundlesRes, couponsRes] = await Promise.all([
         api.getMyProducts().catch(() => ({ data: [] })),
         api.getSales().catch(() => ({ data: [] })),
         user?.id ? api.getFarmer(user.id).catch(() => ({})) : Promise.resolve({}),
         api.getBundles().catch(() => ({ data: [] })),
+        api.getMyCoupons().catch(() => ({ data: [] })),
       ]);
       
       setProducts(productsRes.data ?? productsRes);
       setSales(salesRes.data ?? salesRes);
       setBundles((bundlesRes.data ?? []).filter(b => b.farmer_id === user?.id));
+      setCoupons(couponsRes.data ?? []);
       
       if (profileRes.data) {
         const d = profileRes.data;
@@ -826,6 +833,92 @@ export default function Dashboard() {
           )}
         </div>
       )}
+
+      )}
+
+      {/* Coupon Management */}
+      <div style={{ ...s.card, marginTop: 24 }}>
+        <h3 style={{ marginBottom: 16, color: '#333' }}>🏷️ Coupon Codes</h3>
+        {couponMsg && (
+          <div style={{ ...s.msg, background: couponMsg.type === 'ok' ? '#d8f3dc' : '#fee', color: couponMsg.type === 'ok' ? '#2d6a4f' : '#c0392b', marginBottom: 12 }}>
+            {couponMsg.text}
+          </div>
+        )}
+        <form style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 16 }} onSubmit={async e => {
+          e.preventDefault();
+          setCouponMsg(null);
+          try {
+            await api.createCoupon({
+              code: couponForm.code.trim(),
+              discount_type: couponForm.discount_type,
+              discount_value: parseFloat(couponForm.discount_value),
+              max_uses: couponForm.max_uses ? parseInt(couponForm.max_uses) : undefined,
+              expires_at: couponForm.expires_at || undefined,
+            });
+            setCouponMsg({ type: 'ok', text: 'Coupon created!' });
+            setCouponForm({ code: '', discount_type: 'percent', discount_value: '', max_uses: '', expires_at: '' });
+            const res = await api.getMyCoupons();
+            setCoupons(res.data ?? []);
+          } catch (err) { setCouponMsg({ type: 'err', text: err.message }); }
+        }}>
+          <div>
+            <label style={s.label}>Code</label>
+            <input style={s.input} placeholder="e.g. SUMMER10" value={couponForm.code} onChange={e => setCouponForm(f => ({ ...f, code: e.target.value }))} required />
+          </div>
+          <div>
+            <label style={s.label}>Type</label>
+            <select style={s.input} value={couponForm.discount_type} onChange={e => setCouponForm(f => ({ ...f, discount_type: e.target.value }))}>
+              <option value="percent">Percent (%)</option>
+              <option value="fixed">Fixed (XLM)</option>
+            </select>
+          </div>
+          <div>
+            <label style={s.label}>Value</label>
+            <input style={s.input} type="number" min="0.01" step="any" placeholder={couponForm.discount_type === 'percent' ? '10' : '1.5'} value={couponForm.discount_value} onChange={e => setCouponForm(f => ({ ...f, discount_value: e.target.value }))} required />
+          </div>
+          <div>
+            <label style={s.label}>Max Uses (optional)</label>
+            <input style={s.input} type="number" min="1" placeholder="Unlimited" value={couponForm.max_uses} onChange={e => setCouponForm(f => ({ ...f, max_uses: e.target.value }))} />
+          </div>
+          <div style={{ gridColumn: '1 / -1' }}>
+            <label style={s.label}>Expires At (optional)</label>
+            <input style={s.input} type="datetime-local" value={couponForm.expires_at} onChange={e => setCouponForm(f => ({ ...f, expires_at: e.target.value }))} />
+          </div>
+          <div style={{ gridColumn: '1 / -1' }}>
+            <button style={s.btn} type="submit">Create Coupon</button>
+          </div>
+        </form>
+        {coupons.length > 0 && (
+          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+            <thead>
+              <tr style={{ borderBottom: '2px solid #eee', textAlign: 'left' }}>
+                <th style={{ padding: '6px 8px' }}>Code</th>
+                <th style={{ padding: '6px 8px' }}>Discount</th>
+                <th style={{ padding: '6px 8px' }}>Uses</th>
+                <th style={{ padding: '6px 8px' }}>Expires</th>
+                <th style={{ padding: '6px 8px' }}></th>
+              </tr>
+            </thead>
+            <tbody>
+              {coupons.map(c => (
+                <tr key={c.id} style={{ borderBottom: '1px solid #f0f0f0' }}>
+                  <td style={{ padding: '6px 8px', fontWeight: 600 }}>{c.code}</td>
+                  <td style={{ padding: '6px 8px' }}>{c.discount_type === 'percent' ? `${c.discount_value}%` : `${c.discount_value} XLM`}</td>
+                  <td style={{ padding: '6px 8px' }}>{c.used_count}{c.max_uses ? ` / ${c.max_uses}` : ''}</td>
+                  <td style={{ padding: '6px 8px' }}>{c.expires_at ? new Date(c.expires_at).toLocaleDateString() : '—'}</td>
+                  <td style={{ padding: '6px 8px' }}>
+                    <button style={s.del} onClick={async () => {
+                      if (!confirm('Delete this coupon?')) return;
+                      try { await api.deleteCoupon(c.id); setCoupons(cs => cs.filter(x => x.id !== c.id)); } catch {}
+                    }}>Delete</button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+        {coupons.length === 0 && <div style={{ color: '#aaa', fontSize: 13 }}>No coupons yet.</div>}
+      </div>
 
       {/* CSV Bulk Upload */}
       <div style={{ ...s.card, marginTop: 24 }}>        <h3 style={{ marginBottom: 16, color: '#333' }}>📤 Bulk Upload Products</h3>

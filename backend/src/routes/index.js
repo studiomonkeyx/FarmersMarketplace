@@ -62,6 +62,7 @@ router.use('/api/addresses',     require('./addresses'));
 router.use('/api/messages',      require('./messages'));
 router.use('/api/contracts',     require('./contracts'));
 router.use('/api/products/bulk', require('./bulkUpload'));
+router.use('/api/coupons',       require('./coupons'));
 router.use('/api',               require('./reviews'));
 
 // Versioned aliases
