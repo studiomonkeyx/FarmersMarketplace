@@ -114,6 +114,25 @@ async function request(path, options = {}, retry = true) {
 
 /** Build a query string from a params object, omitting empty/null values. */
 function toQs(params) {
+  const entries = Object.entries(params).filter(([, v]) => v !== '' && v != null);
+  return entries.length ? '?' + new URLSearchParams(entries).toString() : '';
+}
+
+export const api = {
+  register: (body) => request('/auth/register', { method: 'POST', body }),
+  login: (body) => request('/auth/login', { method: 'POST', body }),
+  logout: () => request('/auth/logout', { method: 'POST' }),
+  refresh: () => refreshAccessToken(),
+
+  // filters may include: category, minPrice, maxPrice, seller, available, page, limit
+  getProducts: (filters = {}) => request(`/products${toQs(filters)}`),
+  getCategories: () => request('/products/categories'),
+  getProduct: (id) => request(`/products/${id}`),
+  createProduct: (body) => request('/products', { method: 'POST', body }),
+  getMyProducts: () => request('/products/mine/list'),
+  deleteProduct: (id) => request(`/products/${id}`, { method: 'DELETE' }),
+  updateProduct: (id, body) => request(`/products/${id}`, { method: 'PATCH', body }),
+  searchProducts: (q) => request(`/products/search?q=${encodeURIComponent(q)}`),
   const entries = Object.entries(params).filter(
     ([, v]) => v !== "" && v != null,
   );
@@ -280,28 +299,26 @@ export const api = {
   searchProducts: (q) => request(`/products/search?q=${encodeURIComponent(q)}`),
 
   placeOrder: (body) => request('/orders', { method: 'POST', body }),
-  // params may include: status, page, limit
   getOrders: (params = {}) => request(`/orders${toQs(params)}`),
-  // params may include: page, limit
   getSales: (params = {}) => request(`/orders/sales${toQs(params)}`),
-  getOrders: (status) => request(`/orders${status ? `?status=${status}` : ''}`),
-  getSales: () => request('/orders/sales'),
   updateOrderStatus: (id, status) => request(`/orders/${id}/status`, { method: 'PATCH', body: { status } }),
+
+  submitReview: (body) => request('/reviews', { method: 'POST', body }),
 
   getWallet: () => request('/wallet'),
   getTransactions: () => request('/wallet/transactions'),
   fundWallet: () => request('/wallet/fund', { method: 'POST' }),
+
+  getFarmer: (id) => request(`/farmers/${id}`),
+  updateFarmerProfile: (body) => request('/farmers/me', { method: 'PATCH', body }),
+
+  getXlmRate: () => request('/rates/xlm-usd'),
   getAnalytics: () => request('/analytics/farmer'),
-  getCategories: function() { return request('/products/categories'); },
-  getProduct: function(id) { return request('/products/' + id); },
-  createProduct: function(body) { return request('/products', { method: 'POST', body: body }); },
-  getMyProducts: function() { return request('/products/mine/list'); },
-  deleteProduct: function(id) { return request('/products/' + id, { method: 'DELETE' }); },
 
-  placeOrder: function(body) { return request('/orders', { method: 'POST', body: body }); },
-  getOrders: function(status) { return request('/orders' + (status ? '?status=' + status : '')); },
-  getSales: function() { return request('/orders/sales'); },
-
+  // Admin
+  adminGetUsers: (page = 1) => request(`/admin/users?page=${page}`),
+  adminDeactivateUser: (id) => request(`/admin/users/${id}`, { method: 'DELETE' }),
+  adminGetStats: () => request('/admin/stats'),
   getWallet: function() { return request('/wallet'); },
   getTransactions: function() { return request('/wallet/transactions'); },
   fundWallet: function() { return request('/wallet/fund', { method: 'POST' }); },

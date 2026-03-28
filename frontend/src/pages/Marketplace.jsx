@@ -35,6 +35,11 @@ const s = {
   preorderBadge: { display: 'inline-block', fontSize: 11, background: '#fff3cd', color: '#856404', borderRadius: 4, padding: '2px 7px', marginBottom: 8, marginLeft: 6 },
   bundleBadge:{ display: 'inline-block', fontSize: 11, background: '#fff3cd', color: '#856404', borderRadius: 4, padding: '2px 7px', marginBottom: 8, fontWeight: 700 },
   empty:      { textAlign: 'center', padding: 60, color: '#888' },
+  sellerSection: { display: 'flex', gap: 10, alignItems: 'center', marginTop: 12, paddingTop: 12, borderTop: '1px solid #eee' },
+  sellerAvatar: { width: 36, height: 36, borderRadius: '50%', objectFit: 'cover', background: '#d8f3dc', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18, flexShrink: 0 },
+  sellerInfo: { flex: 1, minWidth: 0 },
+  sellerName: { fontWeight: 600, fontSize: 13, color: '#2d6a4f', cursor: 'pointer', textDecoration: 'underline', marginBottom: 2 },
+  sellerLocation: { fontSize: 11, color: '#999' },
   sectionTitle: { fontSize: 20, fontWeight: 700, color: '#2d6a4f', margin: '32px 0 16px' },
   bundleCard: { background: '#fff', borderRadius: 12, padding: 20, boxShadow: '0 1px 8px #0001', border: '2px solid #fff3cd' },
   bundleItems:{ fontSize: 13, color: '#555', margin: '8px 0 12px', paddingLeft: 16 },
@@ -231,12 +236,6 @@ export default function Marketplace() {
                 </div>
               ) : null}
               <div style={s.name}>{p.name}</div>
-              <div
-                style={{ ...s.farmer, cursor: 'pointer', textDecoration: 'underline' }}
-                onClick={e => { e.stopPropagation(); navigate(`/farmer/${p.farmer_id}`); }}
-              >
-                by {p.farmer_name}
-              </div>
               <div style={s.desc}>{p.description || 'Fresh from the farm'}</div>
               <div style={s.price}>{p.price} XLM <span style={{ fontSize: 13, fontWeight: 400 }}>/ {p.unit}</span></div>
               {usd(p.price) && <div style={{ fontSize: 12, color: '#888', marginTop: 2 }}>{usd(p.price)} <span style={{ fontSize: 10, color: '#aaa' }}>(approx.)</span></div>}
@@ -246,6 +245,24 @@ export default function Marketplace() {
                   <StarRating value={p.avg_rating} count={p.review_count} size={13} />
                 </div>
               )}
+              
+              {/* Seller Information Section */}
+              <div style={s.sellerSection}>
+                {p.farmer_avatar ? (
+                  <img src={p.farmer_avatar} alt={p.farmer_name} style={s.sellerAvatar} />
+                ) : (
+                  <div style={{ ...s.sellerAvatar, fontSize: 18 }}>👨‍🌾</div>
+                )}
+                <div style={s.sellerInfo}>
+                  <div
+                    style={s.sellerName}
+                    onClick={e => { e.stopPropagation(); navigate(`/farmer/${p.farmer_id}`); }}
+                  >
+                    {p.farmer_name}
+                  </div>
+                  {p.farmer_location && <div style={s.sellerLocation}>📍 {p.farmer_location}</div>}
+                </div>
+              </div>
             </div>
           ))}
         </div>
